@@ -1,0 +1,73 @@
+---
+title: "Teste de dados repetidos"
+author: "Jônatan Tatsch"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_notebook:
+    toc: yes
+  html_document:
+    fig_caption: yes
+    fig_width: 6
+    keep_md: yes
+    number_sections: yes
+    toc: yes
+
+---
+
+
+# Introdução 
+
+asd
+
+# Pacotes, funções e pré-configurações
+
+Carregando pacotes necessários.
+
+```{r setup, message=FALSE}
+# limpa espaço de trabalho
+rm(list = ls()) 
+# carrega pacotes necessários
+pacotes <- c("knitr", "tidyverse", "lubridate", "openair", "stringr", 
+             "magrittr", "padr")
+easypackages::libraries(pacotes)
+# configura chuncks
+# carrega scripts necessários
+source("../R/utils.R")
+source("../R/gg_bubble.R")
+source("../R/expected_rows.R")
+Sys.setenv(TZ = "UTC")
+```
+
+# Dados 
+
+```{r chunk4}
+# metadados do INMET corrigidos e atualizados.(see R/aws-inmet-metadata.R)
+tar_info <- readRDS("../output/tar-info-inmet-2008-2016-4yrs-south.rds")
+  tar_info
+# dados
+tar_data <- readRDS("../output/tar-data-inmet-2008-2016-4yrs-south.rds")
+tar_data
+expected_rows(tar_data)
+```
+
+
+# QC1
+
+Teste de QC para detecão de dados reptidos.
+
+
+
+# Arquivos gerados para análises futuras
+
+
+- arquivo de metadados
+    
+    - `output/tar-info-inmet-2008-2016-4yrs-south.rds`
+    
+- arquivo de dados meteorológicos
+
+    - `output/tar-data-inmet-2008-2016-4yrs-south.rds`
+    
+
+
+

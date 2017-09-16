@@ -1,0 +1,305 @@
+---
+title: "Produtos dos Testes de QC"
+author: "Jônatan Tatsch"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_notebook:
+    toc: no
+  html_document:
+    fig_caption: yes
+    fig_width: 6
+    keep_md: yes
+    number_sections: yes
+    toc: no
+
+---
+
+# Pacotes, funções e pré-configurações
+
+Carregando pacotes necessários.
+
+```{r setup, message=FALSE}
+# limpa espaço de trabalho
+rm(list = ls()) 
+# carrega pacotes necessários
+pacotes <- c("knitr", "tidyverse", "lubridate", "openair", "stringr", 
+             "magrittr", "padr", "kableExtra")
+easypackages::libraries(pacotes)
+source("../R/crv_detect.R")
+Sys.setenv(TZ = "UTC")
+#options(knitr.table.format = "html")
+```
+
+# Dados 
+
+Exemplo de dados fictícios.
+
+```{#r#}
+# Exemplo qc1, i = 1, teste de repetição consecutiva de valores 
+exdata <- data_frame(site = c(rep("A800", 20), rep("A900", 20)),
+                     date = c(seq(as.POSIXct("2000-01-01 00:00:00"),
+                                  length.out = 20,
+                                  by = "hour"),
+                              seq(as.POSIXct("2000-01-01 00:00:00"),
+                                  length.out = 20,
+                                  by = "hour")), 
+                     tar = c(
+                       c(20.6, NA, 22, 22, 22, 23.1, 14.7, 17.7, 25.4, 19.6, 23.4, 24, 
+                         24, 21.3, NA, NA, 26, 26, 26, 26),
+                       c(17, 25.6, 29.7, 29.6, 15.7, 19.8, 18.7, 29.3, 13.1, 22.2, 22.2, 
+                         22.2, 33.8, 21.9, 16.3, 16.3, 26.1, 21.6, 25.9, 25)))
+DT::datatable(exdata, options = list(pageLength = 40,dom = 't'))
+```
+
+```{r}
+tdi200820164ys <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-data-inmet-2008-2016-4yrs-south.rds') %>% arrange(site) %>% select(c('site','date','tair'))
+tdi200820164ys
+```
+
+
+# Produtos de cada QC 
+
+A aplicação de cada QC produzirá os seguintes produtos padronizados:
+
+## Produto 1
+
+ **Conjunto de dados original com uma nova coluna que corresponde ao rótulo identificador do QC (variável $qc_{i}$, onde $i=1,..,n$, $n =$ nº de testes de controle de qualidade)**
+    
+  - $qc_{i}=1$, dado não aprovado no teste $i$ (dado suspeito)
+  
+  - $qc_{i}=0$, dado aprovado no teste $i$
+
+Exemplo
+
+```{r}
+options(tibble.print_max = Inf)
+# identificador do qc
+id_qc <- 1
+# Exemplo qc2, i = 2, teste de repetição consecutiva de valores 
+tdi200820164ys_qc <- mutate(tdi200820164ys,
+                    qc = id_qc,
+                    suspect = as.integer(crv_detect(x = tair, 
+                                                   thresh = -99,
+                                                   min.steps = 2)
+                     )
+)
+
+# kableExtra::kable_styling(kable(exdata))
+# DT::datatable(exdata_qc, options = list(pageLength = 40,dom = 't'))
+```
+
+```{r}
+prod1_file <- str_replace("../output/tdi200820164ys-qcID.rds", "ID",as.character(id_qc))
+prod1_file
+```
+
+
+```{r, eval = FALSE}
+saveRDS(tdi200820164ys_qc, file = prod1_file)
+```
+
+
+## Produto 2
+
+**Tabela com código da EMA, identificador do teste de QC (ex. qc = 1), n° de observações suspeitas (n), data inicial (start) e data final (end) do evento.**
+
+
+```{r}
+meta_qc <- mutate(tdi200820164ys_qc, 
+                  # identificador de cada evento
+                  id = crv_detect(x = tair, thresh = -99, min.steps = 2, numerate = TRUE)) %>%
+  filter(!is.na(id)) %>%
+  group_by(id) %>%
+  summarise(site = first(site),
+            qc = first(qc),
+            n = n(),
+            start = min(date), 
+            end = max(date),
+            value = unique(tair)) %>%
+  select(site:value, id)
+meta_qc
+
+# DT::datatable(meta_qc, options = list( dom = 't'))
+```
+
+```{r, echo = FALSE}
+cat("\n")
+```
+
+A coluna adicional com a variável `value` foi adicionada porque é útil saber qual o valor que está se repetindo num dado evento formado por valores consecutivos repetidos. Essa variável é necessária neste tipo de QC mas pode ser opcional, dependendo do `qc` aplicado.
+
+```{r}
+prod2_file <- str_replace("../output/tdi200820164ys-qcID-metadata.rds", "ID", as.character(id_qc))
+prod2_file
+```
+
+```{r, eval = FALSE}
+saveRDS(meta_qc, file = prod2_file)
+```
+
+## Produto 3
+
+Tabela resumo do numéro de casos suspeitos pelo `qc` aplicado e a porcentagem.
+
+```{#r test}
+tdi200820164ys_qc %>% 
+  group_by(site) %>% 
+  summarise(
+    total_ema = n(), 
+    total_suspect = sum(suspect),
+    perc = (total_suspect/total_ema)*100)
+```
+
+```{r}
+# 'tdi200820164ys' == 'exdata' # são os dados originais carregados
+n = tdi200820164ys_qc %>% 
+  group_by(site) %>% 
+  summarise( tema = n() )
+s_qc <- meta_qc %>%
+  group_by(site) %>%
+  summarise(qc = first(qc),
+            tot = sum(n) )#,
+#            perc = tot/nrow(tdi200820164ys_qc) * 100)
+
+x1 <- s_qc %>% inner_join(n, by = 'site')
+
+perc <- (x1[['tot']] / x1[['tema']]) * 100
+
+x2 <- select(x1, c('site','qc','tot'))
+
+summary_qc <- data.table::data.table(x2, perc)
+summary_qc
+
+# DT::datatable(summary_qc, options = list(dom = 't'))
+```
+
+```{r}
+prod3_file <- str_replace("../output/tdi200820164ys-qcID-summary.rds", "ID", as.character(id_qc))
+prod3_file
+```
+
+```{r}
+saveRDS(summary_qc, file = prod3_file)
+```
+
+# Arquivos e finalidades
+
+- arquivo do Produto 1
+
+    - `r prod1_file`
+        - *arquivo que poderá ser usado na verificação dos dados suspeitos por visualização das séries temporais*
+        
+
+- arquivo do Produto 2
+
+    - `r prod2_file`
+        - *arquivo auxiliar para determinar estatísticas sobre os eventos detectados pelo QC, como por exemplo, qual o evento mais longo e a data de sua ocorrência; qual época do ano com mais dados suspeitos.*
+
+- arquivo do Produto 3
+
+    - `r prod3_file`
+        - *arquivo útil para visualização espacial da distribuição da frequência de ocorrência de dados suspeitos.*
+
+# Mapas
+
+```{r}
+source('/home/jonas/rpackages/jbc-ic/R/gg_bubble.R')
+
+estados <- readRDS("../data/estados_sul.rds")
+p3 <- readRDS('/home/jonas/rpackages/jbc-ic/output/tdi200820164ys-qc1-summary.rds')
+info <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-info-inmet-2008-2016-4yrs-south.rds')
+
+p <- inner_join(p3, info, by = 'site')
+p
+```
+
+
+```{r plot-disp, fig.width=9.3, fig.height=7.25, fig.align='center' }
+gg_tot <- gg_bubble(data = p
+                     ,z = "tot"
+                     ,breaks = c(pretty(p$tot, n = 10),105)
+                     ,limites = estados
+                     ,colors_z = viridis::viridis
+                     ,color_fill = "burlywood3"
+                     ,z_legend = "Dados reprovados no teste de controle de qualidade 1"
+                     ,text_color = "gray30"
+                     ,point_color = "transparent"
+                     ,text_size = 2.6
+                     ,point_size = 3
+                     ,repel_min_seg_len = 2,
+                     ,legend.justification = c(0,1) 
+                     ,legend.position = c(0.01, 0.99)
+                     ,guide_type = "colourbar"
+                     )
+gg_tot
+```
+
+
+```{r plot-disp, fig.width=9.3, fig.height=7.25, fig.align='center' }
+gg_perc <- gg_bubble(data = p
+                     ,z = "perc"
+                     ,breaks = c(pretty(p$perc, n = 10),105)
+                     ,limites = estados
+                     ,colors_z = viridis::viridis
+                     ,color_fill = "burlywood3"
+                     ,z_legend = "Dados reprovados no teste de controle de qualidade 1 (%)"
+                     ,text_color = "gray30"
+                     ,point_color = "transparent"
+                     ,text_size = 2.6
+                     ,point_size = 3
+                     ,repel_min_seg_len = 2,
+                     ,legend.justification = c(0,1) 
+                     ,legend.position = c(0.01, 0.99)
+                     ,guide_type = "colourbar"
+                     )
+gg_perc
+```
+
+
+
+```{r plot-disp, fig.width=9.3, fig.height=7.25, fig.align='center' }
+estados <- readRDS("../data/estados_sul.rds")
+filter(tar_gaps, site == "A825")
+gg_disp <- gg_bubble(#data =  filter(tar_gaps, site %in% sites_sel)
+                     data = tar_gaps
+                     ,z = "valid"
+                     ,breaks = c(pretty(tar_gaps$valid, n = 10),105)
+                     ,limites = estados
+                     ,colors_z = viridis::viridis
+                     ,color_fill = "burlywood3"
+                     ,z_legend = "Disponibilidade (%)"
+                     ,text_color = "gray30"
+                     ,point_color = "transparent"
+                     ,text_size = 2.6
+                     ,point_size = 3
+                     ,repel_min_seg_len = 2,
+                     ,legend.justification = c(0,1) 
+                     ,legend.position = c(0.01, 0.99)
+                     ,guide_type = "colourbar"
+                     ) 
+gg_disp
+range(tar_gaps$valid)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

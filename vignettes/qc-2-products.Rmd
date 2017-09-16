@@ -1,0 +1,185 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Produtos dos Testes de QC
+
+Carregando pacotes necessários.
+
+```{r}
+# limpa espaço de trabalho
+rm(list = ls())
+# carrega pacotes necessários
+source('/home/jonas/rpackages/jbc-ic/R/qc_estevez.R')
+source("../R/crv_detect.R")
+pacotes <- c("dplyr","knitr", "tidyverse", "lubridate", "openair", "stringr", 
+             "magrittr", "padr") #, "kableExtra")
+easypackages::libraries(pacotes)
+rm(pacotes)
+Sys.setenv(TZ = "UTC")
+#options(knitr.table.format = "html")
+```
+
+# Dados
+
+```{r}
+tdi200820164ys <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-data-inmet-2008-2016-4yrs-south.rds') %>% arrange(site)
+tdi200820164ys <- as_data_frame(tdi200820164ys[,c(2,1,3,4,5,6,7,8)])
+tdi200820164ys
+
+#filter(tdi200820164ys, tair < -30 | tair > 50)
+```
+
+# Produtos de cada QC
+
+A aplicação de cada QC produzirá os seguintes produtos padronizados:
+
+## Produto 1
+
+Conjunto de dados original com uma nova coluna que corresponde ao rótulo identificador do QC (variável _qci_, onde _i=1,..,n_, n= __nº de testes de controle de qualidade__)
+
+1. _qci=1_, dado não aprovado no teste _i_ (dado suspeito)
+2. _qci=1_, dado aprovado no teste _i_
+
+```{r}
+tdi200820164ys_qc <- 
+  qc_1(data = tdi200820164ys, var = 'tair',exmin = -30, exmax = 50)
+tdi200820164ys_qc
+#filter(tdi200820164ys_qc, is.na(suspect))
+```
+
+```{r}
+prod1_file <- str_replace("../output/tar-data-inmet-2008-2016-4yrs-south-qcID.rds", "ID",as.character(1))
+prod1_file
+```
+
+```{r}
+saveRDS(tdi200820164ys_qc, file = prod1_file)
+```
+
+
+# Produto 2
+
+Tabela com código da EMA, identificador do teste de QC (ex. qc = 1), n° de observações suspeitas (n), data inicial (start) e data final (end) do evento.
+
+```{r}
+meta_qc <- tdi200820164ys_qc %>%
+  filter(suspect == 1) %>% 
+  select(c('site','qc','date','suspect','tair'))
+meta_qc
+
+tdi200820164ys_qc
+```
+
+
+
+
+
+
+```{r test}
+
+# Tudo abaixo funciona, contanto que haja dados suspeitos
+
+x <- data.frame(
+  n = 1:10,
+  site = c('A100', 'A100', 'A200', 'A200', 'A200', 'A300', 'A400', 'A400', 'A500', 'A500'),
+  qc = rep(1,10),
+#  suspect = c(0,0,0,1,1,1,0,1,0,0)
+#  ,
+  suspect = c(0,0,0,0,0,0,0,0,0,0)
+  )
+x # dados originais pára o teste
+
+y <- x %>% filter(suspect == 1) #%>% select(c('site','n','qc','suspect'))
+y
+
+s <- x %>%  
+  group_by(site) %>% 
+  summarise(size = n())
+s # tamanho dos sites são fixos, tnto para com/sem dados suspeitos
+
+a <- y %>%
+  group_by(site) %>%
+  summarise(qc = first(qc),
+            tot = sum(suspect)) %>% 
+  inner_join(s, by = 'site')
+a
+
+perc <- round(a[['tot']]/a[['size']] * 100, 1)
+perc
+
+aa <- select(a,c('site','qc','tot'))
+aa
+
+s_qc <- data.table::as.data.table(aa,perc)
+s_qc
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+prod2_file <- str_replace("../output/tar-data-inmet-2008-2016-4yrs-south-metadata.rds", "ID", as.character(1))
+prod2_file
+```
+
+```{r}
+saveRDS(meta_qc, file = prod2_file)
+```
+
+# Produto 3
+
+Tabela resumo do numéro de casos suspeitos pelo qc aplicado e a porcentagem.
+
+```{r}
+a1 <- tdi200820164ys_qc %>%  
+  group_by(site) %>% 
+  summarise(size = n())
+
+summary_qc <- meta_qc %>%
+  group_by(site) %>%
+  summarise(qc = first(qc),
+            tot = sum(suspect)) %>% 
+  full_join(a1, by = 'site')
+
+perc <- round(a1[['tot']]/a1[['size']] * 100, 1)
+
+a2 <- select(a1,c('site','qc','tot'))
+
+summary_qc <- data.frame(a2,perc)
+summary_qc
+
+# DT::datatable(summary_qc, options = list(dom = 't'))
+```
+
+```{r}
+prod3_file <- str_replace("../output/tar-data-inmet-2008-2016-4yrs-south-qcID-summary.rds", "ID", as.character(1))
+prod3_file
+```
+
+```{r}
+saveRDS(summary_qc, file = prod3_file)
+```
+
+# Arquivos e finalidades
+
+1. arquivo do Produto 1: arquivo que poderá ser usado na verificação dos dados suspeitos por visualização das séries temporais
+
+2. arquivo do Produto 2: arquivo auxiliar para determinar estatísticas sobre os eventos detectados pelo QC, como por exemplo, qual o evento mais longo e a data de sua ocorrência; qual época do ano com mais dados suspeitos.
+
+3. arquivo útil para visualização espacial da distribuição da frequência de ocorrência de dados suspeitos.
+
+
+
+
