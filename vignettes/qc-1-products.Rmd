@@ -214,7 +214,7 @@ p
 ```
 
 
-```{r plot-disp, fig.width=9.3, fig.height=7.25, fig.align='center' }
+```{r plot-tot, fig.width=9.3, fig.height=7.25, fig.align='center' }
 gg_tot <- gg_bubble(data = p
                      ,z = "tot"
                      ,breaks = c(pretty(p$tot, n = 10),105)
@@ -235,7 +235,7 @@ gg_tot
 ```
 
 
-```{r plot-disp, fig.width=9.3, fig.height=7.25, fig.align='center' }
+```{r plot-perc, fig.width=9.3, fig.height=7.25, fig.align='center' }
 gg_perc <- gg_bubble(data = p
                      ,z = "perc"
                      ,breaks = c(pretty(p$perc, n = 10),105)
