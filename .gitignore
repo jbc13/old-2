@@ -5,12 +5,3 @@
 output/*.rds
 data/*.rds
 .html
-BRA_msk_alt.grd
-BRA_msk_alt.gri
-BRA_msk_alt.vrt
-date-raw-inmet-sul-20000922-20161231.rds
-dataSel_inmet_sul_localtime.rds
-estados_sul.rds
-info-inmet-south-from-website.rds
-info-inmet-sul.rds
-
