@@ -214,6 +214,7 @@ sites_sel <- tar_periods %>%
   pull()
 sites_sel
 length(sites_sel)
+
 # filtrar dados só com as EMAs do sites_sel
 tar_data_sel <- filter(tar_data_sel, site %in% sites_sel)
 glimpse(tar_data_sel)
@@ -229,6 +230,7 @@ file_data_sel <- paste0("tar-data-inmet-",
                         period_thres, "yrs-",
                         "south.rds")
 saveRDS(tar_data_sel, file = file.path("../output", file_data_sel))
+
 # metadados
 file_info_sel <- paste0("tar-info-inmet-", 
                         begin_year, "-", 
@@ -329,6 +331,14 @@ saveRDS(tar_gaps, file = file.path("../output", file_gaps))
 ```
 
 
+```{r}
+tar_data_sel <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-data-inmet-2008-2016-4yrs-south.rds')
+tar_data_sel
+```
+
+
+
+
 *Porcentagem de observações por mês *
 
 ```{r, message=FALSE, warning=FALSE}
@@ -343,7 +353,7 @@ records_month <- tar_data_sel %>%
   #mutate(date = as.Date(date)) %>%
   ungroup() %>%
   mutate(x = as.numeric(date)) 
-records_month 
+# records_month 
 ```
 
 ```{r}
