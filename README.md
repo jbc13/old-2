@@ -14,5 +14,5 @@ Repositório para organização do material auxiliar para iniciação científic
 
 #####
 
-"qc-1-products.Rmd" corresponde ao "qc2"
+"qc-1-products.Rmd" corresponde ao "qc2", 
 "qc-2-products.Rmd" corresponde ao "qc1a"
