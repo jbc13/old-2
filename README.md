@@ -10,3 +10,9 @@ Repositório para organização do material auxiliar para iniciação científic
 - [ ] gerar mapa espacial das estatísticasbásicas das EMAs
 
 - [ ] próxima tarefa
+
+
+#####
+
+"qc-1-products.Rmd" corresponde ao "qc2"
+"qc-2-products.Rmd" corresponde ao "qc1a"
