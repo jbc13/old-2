@@ -64,6 +64,7 @@ tdi200820164ys_qc <- mutate(tdi200820164ys,
                                                    min.steps = 2)
                      )
 )
+tdi200820164ys_qc
 
 # kableExtra::kable_styling(kable(exdata))
 # DT::datatable(exdata_qc, options = list(pageLength = 40,dom = 't'))
@@ -77,6 +78,7 @@ prod1_file
 
 ```{r, eval = FALSE}
 saveRDS(tdi200820164ys_qc, file = prod1_file)
+# readRDS('/home/jonas/rpackages/jbc-ic/output/tdi200820164ys-qc1.rds')
 ```
 
 
@@ -116,6 +118,7 @@ prod2_file
 
 ```{r, eval = FALSE}
 saveRDS(meta_qc, file = prod2_file)
+# readRDS('/home/jonas/rpackages/jbc-ic/output/tdi200820164ys-qc1-metadata.rds')
 ```
 
 ## Produto 3
@@ -123,6 +126,8 @@ saveRDS(meta_qc, file = prod2_file)
 Tabela resumo do numéro de casos suspeitos pelo `qc` aplicado e a porcentagem.
 
 ```{#r test}
+# Retorna o 'site', 'total_ema', 'total_suspect' & 'perc'
+
 tdi200820164ys_qc %>% 
   group_by(site) %>% 
   summarise(
@@ -133,23 +138,33 @@ tdi200820164ys_qc %>%
 
 ```{r}
 # 'tdi200820164ys' == 'exdata' # são os dados originais carregados
-n = tdi200820164ys_qc %>% 
-  group_by(site) %>% 
-  summarise( tema = n() )
-s_qc <- meta_qc %>%
+summary_qc <- meta_qc %>%
   group_by(site) %>%
   summarise(qc = first(qc),
-            tot = sum(n) )#,
-#            perc = tot/nrow(tdi200820164ys_qc) * 100)
-
-x1 <- s_qc %>% inner_join(n, by = 'site')
-
-perc <- (x1[['tot']] / x1[['tema']]) * 100
-
-x2 <- select(x1, c('site','qc','tot'))
-
-summary_qc <- data.table::data.table(x2, perc)
+            tot = sum(n),
+            perc = tot/n() * 100)
 summary_qc
+
+# Linhas adicionadas ao original
+n_obs <- tdi200820164ys_qc %>% 
+  group_by(site) %>% 
+  summarise(nobs = n() )
+
+summary_qc <- meta_qc %>%
+  group_by(site) %>%
+  summarise(qc = first(qc), tot = sum(n)) %>%  # tot: total de dados suspeitos por site
+  ungroup() %>%
+  full_join(n_obs, by = "site") %>%
+  mutate(perc = tot/nobs * 100, nobs = NULL) 
+summary_qc
+
+
+# x1 <- s_qc %>% inner_join(n, by = 'site')
+# perc <- (x1[['tot']] / x1[['tema']]) * 100
+# x2 <- select(x1, c('site','qc','tot'))
+# summary_qc <- data.table::data.table(x2, perc)
+# summary_qc
+
 
 # DT::datatable(summary_qc, options = list(dom = 't'))
 ```
@@ -161,6 +176,7 @@ prod3_file
 
 ```{r}
 saveRDS(summary_qc, file = prod3_file)
+# readRDS('/home/jonas/rpackages/jbc-ic/output/tdi200820164ys-qc1-summary.rds')
 ```
 
 # Arquivos e finalidades
@@ -181,7 +197,7 @@ saveRDS(summary_qc, file = prod3_file)
     - `r prod3_file`
         - *arquivo útil para visualização espacial da distribuição da frequência de ocorrência de dados suspeitos.*
 
-# Mapas
+# Mapas e Gráficos
 
 ```{r}
 source('/home/jonas/rpackages/jbc-ic/R/gg_bubble.R')
@@ -235,3 +251,51 @@ gg_perc <- gg_bubble(data = p
                      )
 gg_perc
 ```
+
+```{r}
+meta_qc
+```
+
+
+```{r, fig.width=9.3, fig.height=7.25, fig.align='center' }
+histo_n <- ggplot(filter(meta_qc,n>2), aes(x = round(n), label = site)) + 
+  geom_histogram(stat = "count") + 
+  # scale_fill_grey() +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 12), 
+                     expand = c(0, 0)) +
+  labs(x = "n") +
+  theme_bw()
+histo_n
+  #geom_histogram(aes(y = ..count../sum(..count..)), stat = "count") + 
+  #viridis::scale_fill_viridis(discrete=TRUE, option = "inferno") +
+
+  #scale_y_continuous(labels = scales::percent,
+  #                   sec.axis = sec_axis(~. * sum(.))) + 
+  
+```
+
+```{r}
+mqc <- meta_qc %>% 
+  group_by(site) %>% 
+  summarise(total_n = sum(n), max_n = max(n))
+mqc
+```
+
+```{r, fig.width=9.3, fig.height=7.25, fig.align='center' }
+histo_maxn <- ggplot(mqc, aes(x = round(max_n), label = site)) + 
+  geom_histogram(stat = "count", aes(fill = site)) + 
+  viridis::scale_fill_viridis(discrete = TRUE, option = "inferno") +
+  # scale_fill_grey() +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 12), 
+                     expand = c(0, 0)) +
+  labs(x = "max(n)") +
+  theme_bw()
+histo_maxn
+  #geom_histogram(aes(y = ..count../sum(..count..)), stat = "count") + 
+  #scale_y_continuous(labels = scales::percent,
+  #                   sec.axis = sec_axis(~. * sum(.))) + 
+```
+
+

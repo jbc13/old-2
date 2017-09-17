@@ -24,8 +24,7 @@ Sys.setenv(TZ = "UTC")
 # Dados
 
 ```{r}
-tdi200820164ys <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-data-inmet-2008-2016-4yrs-south.rds') %>% arrange(site)
-tdi200820164ys <- as_data_frame(tdi200820164ys[,c(2,1,3,4,5,6,7,8)])
+tdi200820164ys <- readRDS('/home/jonas/rpackages/jbc-ic/output/tar-data-inmet-2008-2016-4yrs-south.rds') %>% arrange(site) %>% select(c('site', 'date', 'tair'))
 tdi200820164ys
 
 #filter(tdi200820164ys, tair < -30 | tair > 50)
@@ -44,13 +43,13 @@ Conjunto de dados original com uma nova coluna que corresponde ao rótulo identi
 
 ```{r}
 tdi200820164ys_qc <- 
-  qc_1(data = tdi200820164ys, var = 'tair',exmin = -30, exmax = 50)
+  qc_1(data = tdi200820164ys, var = 'tair', exmin = -30, exmax = 50)
 tdi200820164ys_qc
 #filter(tdi200820164ys_qc, is.na(suspect))
 ```
 
 ```{r}
-prod1_file <- str_replace("../output/tar-data-inmet-2008-2016-4yrs-south-qcID.rds", "ID",as.character(1))
+prod1_file <- str_replace("../output/tdi200820164ys-qcID.rds", "ID",as.character(2))
 prod1_file
 ```
 
@@ -68,9 +67,9 @@ meta_qc <- tdi200820164ys_qc %>%
   filter(suspect == 1) %>% 
   select(c('site','qc','date','suspect','tair'))
 meta_qc
-
-tdi200820164ys_qc
 ```
+
+
 
 
 
@@ -81,13 +80,13 @@ tdi200820164ys_qc
 
 # Tudo abaixo funciona, contanto que haja dados suspeitos
 
-x <- data.frame(
+x <- data.table::data.table(
   n = 1:10,
   site = c('A100', 'A100', 'A200', 'A200', 'A200', 'A300', 'A400', 'A400', 'A500', 'A500'),
   qc = rep(1,10),
-#  suspect = c(0,0,0,1,1,1,0,1,0,0)
+  suspect = c(0,0,0,1,1,1,0,1,0,0)
 #  ,
-  suspect = c(0,0,0,0,0,0,0,0,0,0)
+#  suspect = c(0,0,0,0,0,0,0,0,0,0)
   )
 x # dados originais pára o teste
 
@@ -116,26 +115,9 @@ s_qc <- data.table::as.data.table(aa,perc)
 s_qc
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```{r}
-prod2_file <- str_replace("../output/tar-data-inmet-2008-2016-4yrs-south-metadata.rds", "ID", as.character(1))
-prod2_file
-```
-
-```{r}
-saveRDS(meta_qc, file = prod2_file)
+saveRDS(meta_qc, "../output/tdi200820164ys-qc2-metadata.rds")
+# read_rds('/home/jonas/rpackages/jbc-ic/output/tdi200820164ys-qc2-metadata.rds')
 ```
 
 # Produto 3
@@ -143,19 +125,20 @@ saveRDS(meta_qc, file = prod2_file)
 Tabela resumo do numéro de casos suspeitos pelo qc aplicado e a porcentagem.
 
 ```{r}
-a1 <- tdi200820164ys_qc %>%  
+s <- tdi200820164ys_qc %>%  
   group_by(site) %>% 
   summarise(size = n())
 
-summary_qc <- meta_qc %>%
-  group_by(site) %>%
-  summarise(qc = first(qc),
-            tot = sum(suspect)) %>% 
-  full_join(a1, by = 'site')
 
-perc <- round(a1[['tot']]/a1[['size']] * 100, 1)
+s_qc <- meta_qc %>%
+   group_by(site) %>%
+   summarise(qc = first(qc),
+             tot = sum(suspect)) %>% 
+   full_join(s, by = 'site')
 
-a2 <- select(a1,c('site','qc','tot'))
+perc <- round(s[['tot']]/s[['size']] * 100, 1)
+
+a2 <- select(s,c('site','qc','tot'))
 
 summary_qc <- data.frame(a2,perc)
 summary_qc
